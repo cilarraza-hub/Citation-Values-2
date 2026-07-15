@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Citation Values Activity 2</title>
+  <style>
+    /* Match the look/feel of the prototype */
+    body { font-family: Arial, sans-serif; margin: 20px; }
+
+    .btn {
+      display:inline-block;
+      margin-top:12px;
+      margin-right:8px;
+      padding:10px 14px;
+      border:0;
+      border-radius:8px;
+      background:#1f6feb;
+      color:#fff;
+      font-weight:600;
+      box-shadow:0 2px 6px rgba(0,0,0,.15);
+      cursor:pointer;
+    }
+    .btn:hover { filter: brightness(1.05); }
+
+    #result { margin-top:10px; min-height: 20px; font-weight: 600; }
+
+    .intro {
+      max-width: 1100px;
+      line-height: 1.4;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .panel {
+      border: 1px solid #ccc;
+      background: #fafafa;
+      padding: 12px;
+      border-radius: 10px;
+      margin-top: 12px;
+      overflow-x: auto;
+    }
+
+    table.matrix {
+      border-collapse: separate;
+      border-spacing: 8px;
+      width: 100%;
+      min-width: 820px;
+    }
+
+    .colhead {
+      font-weight: 700;
+      font-size: 14px;
+      vertical-align: bottom;
+      padding: 6px 8px;
+      text-align: center;
+    }
+    .colhead.left { text-align: left; }
+
+    /* Text boxes (reused styling) */
+    .textbox {
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 8px;
+      background: #fff;
+      white-space: normal;
+      line-height: 1.35;
+      font-size: 14px;
+      font-family: inherit;
+      font-weight: 400;
+      vertical-align: middle;
+    }
+    td.left-cell { width: 26%; }
+    td.value-cell { width: 22%; }
+
+    /* Checkbox cells */
+    td.check-cell {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fff;
+      text-align: center;
+      vertical-align: middle;
+      padding: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,.08);
+    }
+    td.check-cell input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    /* Correct/incorrect highlighting (same palette) */
+    td.check-cell.correct {
+      background-color: #D9FDD3 !important;
+      border-color: #7dbb73 !important;
+    }
+    td.check-cell.incorrect {
+      background-color: #FDE2E7 !important;
+      border-color: #d27a8a !important;
+    }
+
+    /* Non-color badge indicator (hidden until check) */
+    .badge {
+      display: none;
+      margin-top: 6px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #ccc;
+      background: #fff;
+      white-space: nowrap;
+    }
+    .badge.ok { border-color: #7dbb73; }
+    .badge.no { border-color: #d27a8a; }
+  </style>
+</head>
+
+<body>
+  <p class="intro">
+    For each citation convention, check every box where that convention shapes the
+    relationship or responsibility named in the column. Then click <strong>Check answers</strong>.
+  </p>
+
+  <button class="btn" id="checkBtn" type="button">Check answers</button>
+  <button class="btn" id="resetBtn" type="button">Reset</button>
+  <div id="result" aria-live="polite"></div>
+
+  <div class="panel">
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th class="colhead left">Citation convention or norm</th>
+          <th class="colhead left">Corresponding academic or social value</th>
+          <th class="colhead">Relationship with past knowledge producers</th>
+          <th class="colhead">Relationship with future knowledge producers</th>
+          <th class="colhead">Responsibilities to ourselves as writers</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <script>
+    // Answer key from the uploaded table. true = an "X" (should be checked).
+    // Columns order: [past, future, self]
+    const ROWS = [
+      {
+        convention: "Attributing sources to author names rather than to presses or journal titles",
+        value: "Highlighting people and our relationships to knowledge producers",
+        key: [true, false, false]
+      },
+      {
+        convention: "Accurate and specific placement of in-text citations",
+        value: "Attributing ideas to those who wrote them, specifying where our ideas differ or match",
+        key: [true, false, true]
+      },
+      {
+        convention: "Carefully punctuating quotes",
+        value: "Transparency so the reader knows the writer’s precise words",
+        key: [true, true, false]
+      },
+      {
+        convention: "Including page numbers when citing specific parts of a source",
+        value: "Sharing knowledge so the reader can follow up and understand the original context",
+        key: [false, true, false]
+      },
+      {
+        convention: "Consistency in author names in the text and the bibliography",
+        value: "Transparency so the reader can find a source; acknowledging the writer(s)",
+        key: [true, true, false]
+      }
+    ];
+
+    const rowsEl   = document.getElementById("rows");
+    const resultEl = document.getElementById("result");
+    const checkBtn = document.getElementById("checkBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    function render(){
+      rowsEl.innerHTML = "";
+      ROWS.forEach((row, r) => {
+        const tr = document.createElement("tr");
+
+        const conv = document.createElement("td");
+        conv.className = "textbox left-cell";
+        conv.textContent = row.convention;
+        tr.appendChild(conv);
+
+        const val = document.createElement("td");
+        val.className = "textbox value-cell";
+        val.textContent = row.value;
+        tr.appendChild(val);
+
+        for (let c = 0; c < 3; c++) {
+          const cell = document.createElement("td");
+          cell.className = "check-cell";
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.dataset.row = r;
+          cb.dataset.col = c;
+          cell.appendChild(cb);
+
+          const badge = document.createElement("div");
+          badge.className = "badge";
+          cell.appendChild(badge);
+
+          tr.appendChild(cell);
+        }
+
+        rowsEl.appendChild(tr);
+      });
+    }
+
+    function clearAllFeedback(){
+      resultEl.textContent = "";
+      resultEl.style.color = "#111";
+      document.querySelectorAll(".check-cell").forEach(cell => {
+        cell.classList.remove("correct","incorrect");
+        const badge = cell.querySelector(".badge");
+        badge.textContent = "";
+        badge.classList.remove("ok","no");
+        badge.style.display = "none";
+      });
+    }
+
+    function checkAnswers(){
+      let anyIncorrect = false;
+
+      document.querySelectorAll(".check-cell").forEach(cell => {
+        const r = +cell.dataset.row;
+        const c = +cell.dataset.col;
+        const cb = cell.querySelector('input[type="checkbox"]');
+        const badge = cell.querySelector(".badge");
+        const shouldCheck = ROWS[r].key[c];
+        const isChecked = cb.checked;
+
+        cell.classList.remove("correct","incorrect");
+        badge.classList.remove("ok","no");
+        badge.style.display = "block";
+
+        if (isChecked === shouldCheck) {
+          cell.classList.add("correct");
+          badge.classList.add("ok");
+          badge.textContent = "Correct";
+        } else {
+          anyIncorrect = true;
+          cell.classList.add("incorrect");
+          badge.classList.add("no");
+          badge.textContent = "Try again!";
+        }
+      });
+
+      if (anyIncorrect) {
+        resultEl.textContent = "Not quite — review the cells marked “Try again!” and check again.";
+        resultEl.style.color = "#b00020";
+      } else {
+        resultEl.textContent = "Correct! Every cell matches the answer key.";
+        resultEl.style.color = "#0a8a0a";
+      }
+    }
+
+    function resetAll(){
+      document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+      clearAllFeedback();
+      resultEl.textContent = "Reset complete. Check the boxes that apply, then click “Check answers.”";
+      resultEl.style.color = "#111";
+    }
+
+    checkBtn.addEventListener("click", checkAnswers);
+    resetBtn.addEventListener("click", resetAll);
+
+    render();
+  </script>
+</body>
+</html>
