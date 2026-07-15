@@ -116,6 +116,10 @@
 </head>
 
 <body>
+  <p class="intro">
+    For each citation convention, check every box where that convention shapes the
+    relationship or responsibility named in the column. Then click <strong>Check answers</strong>.
+  </p>
 
   <button class="btn" id="checkBtn" type="button">Check answers</button>
   <button class="btn" id="resetBtn" type="button">Reset</button>
@@ -235,17 +239,30 @@
 
         cell.classList.remove("correct","incorrect");
         badge.classList.remove("ok","no");
-        badge.style.display = "block";
 
-        if (isChecked === shouldCheck) {
+        if (shouldCheck && isChecked) {
+          // Correctly checked X cell
           cell.classList.add("correct");
           badge.classList.add("ok");
           badge.textContent = "Correct";
-        } else {
+          badge.style.display = "block";
+        } else if (shouldCheck && !isChecked) {
+          // Missed X cell
           anyIncorrect = true;
           cell.classList.add("incorrect");
           badge.classList.add("no");
           badge.textContent = "Try again!";
+          badge.style.display = "block";
+        } else if (!shouldCheck && isChecked) {
+          // Wrongly checked empty cell
+          anyIncorrect = true;
+          cell.classList.add("incorrect");
+          badge.classList.add("no");
+          badge.textContent = "Try again!";
+          badge.style.display = "block";
+        } else {
+          // Correctly left empty — stay neutral, no badge
+          badge.style.display = "none";
         }
       });
 
