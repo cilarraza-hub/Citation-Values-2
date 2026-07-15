@@ -32,12 +32,6 @@
       margin-bottom: 4px;
     }
 
-    .hint {
-      font-size: 13px;
-      color: #444;
-      margin-top: 8px;
-    }
-
     .panel {
       border: 1px solid #ccc;
       background: #fafafa;
@@ -51,7 +45,7 @@
       border-collapse: separate;
       border-spacing: 8px;
       width: 100%;
-      min-width: 920px; /* allow extra column for combination feedback */
+      min-width: 820px;
     }
 
     .colhead {
@@ -95,62 +89,29 @@
       cursor: pointer;
     }
 
-    /* Row-level highlighting for combination correctness */
-    tr.row-correct td {
-      background-color: #e9f9ea; /* subtle green */
+    /* Correct/incorrect highlighting (same palette) */
+    td.check-cell.correct {
+      background-color: #D9FDD3 !important;
+      border-color: #7dbb73 !important;
     }
-    tr.row-incorrect td {
-      background-color: #fff2f5; /* subtle red */
-    }
-
-    /* Combination feedback cell */
-    td.row-feedback {
-      width: 18%;
-      vertical-align: middle;
-      text-align: center;
+    td.check-cell.incorrect {
+      background-color: #FDE2E7 !important;
+      border-color: #d27a8a !important;
     }
 
-    .combination {
-      display: inline-flex;
-      gap: 6px;
-      align-items: center;
-      justify-content: center;
-    }
-    .square {
-      width: 14px;
-      height: 14px;
-      border-radius: 3px;
-      border: 1px solid #999;
-      background: #fff;
-      box-shadow: 0 1px 2px rgba(0,0,0,.06);
-    }
-    .square.filled { background: #1f6feb; border-color: #1f6feb; }
-
-    .row-badge {
-      display: inline-block;
-      margin-left: 10px;
-      padding: 4px 8px;
+    /* Non-color badge indicator (hidden until check) */
+    .badge {
+      display: none;
+      margin-top: 6px;
+      padding: 2px 7px;
       border-radius: 999px;
-      font-size: 12px;
+      font-size: 11px;
       border: 1px solid #ccc;
       background: #fff;
+      white-space: nowrap;
     }
-    .row-badge.ok { border-color: #7dbb73; color: #0a8a0a; }
-    .row-badge.no { border-color: #d27a8a; color: #b00020; }
-
-    /* Non-color (accessible) indicator text */
-    .accessible-note {
-      font-size: 12px;
-      color: #333;
-      margin-top: 6px;
-    }
-
-    /* Make individual cells less visually dominant */
-    .check-cell.correct, .check-cell.incorrect { box-shadow: none; }
-
-    @media (max-width: 800px) {
-      table.matrix { min-width: 700px; }
-    }
+    .badge.ok { border-color: #7dbb73; }
+    .badge.no { border-color: #d27a8a; }
   </style>
 </head>
 
@@ -159,8 +120,6 @@
     For each citation convention, check every box where that convention shapes the
     relationship or responsibility named in the column. Then click <strong>Check answers</strong>.
   </p>
-
-  <div class="hint">Note: correctness is determined by the full combination of checked boxes in each row (not individual boxes).</div>
 
   <button class="btn" id="checkBtn" type="button">Check answers</button>
   <button class="btn" id="resetBtn" type="button">Reset</button>
@@ -175,13 +134,10 @@
           <th class="colhead">Relationship with past knowledge producers</th>
           <th class="colhead">Relationship with future knowledge producers</th>
           <th class="colhead">Responsibilities to ourselves as writers</th>
-          <th class="colhead">Combination result</th>
         </tr>
       </thead>
       <tbody id="rows"></tbody>
     </table>
-
-    <div class="accessible-note">Legend: the three small squares show the expected checked pattern for the row (left = past, middle = future, right = self). Filled square = should be checked.</div>
   </div>
 
   <script>
@@ -247,31 +203,12 @@
           cb.dataset.col = c;
           cell.appendChild(cb);
 
+          const badge = document.createElement("div");
+          badge.className = "badge";
+          cell.appendChild(badge);
+
           tr.appendChild(cell);
         }
-
-        // Row-level feedback column (shows expected pattern + badge when checked)
-        const feedback = document.createElement('td');
-        feedback.className = 'row-feedback';
-        feedback.dataset.row = r;
-
-        const comb = document.createElement('div');
-        comb.className = 'combination';
-        // three squares representing pattern (we'll update classes later)
-        for (let i=0;i<3;i++){
-          const sq = document.createElement('span');
-          sq.className = 'square';
-          sq.dataset.idx = i;
-          comb.appendChild(sq);
-        }
-        feedback.appendChild(comb);
-
-        const badge = document.createElement('span');
-        badge.className = 'row-badge';
-        badge.style.display = 'none';
-        feedback.appendChild(badge);
-
-        tr.appendChild(feedback);
 
         rowsEl.appendChild(tr);
       });
@@ -280,96 +217,72 @@
     function clearAllFeedback(){
       resultEl.textContent = "";
       resultEl.style.color = "#111";
-      document.querySelectorAll('tr').forEach(tr => tr.classList.remove('row-correct','row-incorrect'));
-      document.querySelectorAll('.row-badge').forEach(b => { b.textContent=''; b.classList.remove('ok','no'); b.style.display='none'; });
-      // ensure the pattern squares reset to show expected pattern only as neutral (no highlight)
-      document.querySelectorAll('.row-feedback .square').forEach(sq => sq.classList.remove('filled'));
+      document.querySelectorAll(".check-cell").forEach(cell => {
+        cell.classList.remove("correct","incorrect");
+        const badge = cell.querySelector(".badge");
+        badge.textContent = "";
+        badge.classList.remove("ok","no");
+        badge.style.display = "none";
+      });
     }
 
     function checkAnswers(){
       let anyIncorrect = false;
-      const incorrectRows = [];
 
-      // Evaluate rows by combination
-      ROWS.forEach((row, r) => {
-        const tr = rowsEl.children[r];
-        let rowCorrect = true;
-        for (let c=0;c<3;c++){
-          const cell = tr.querySelector(`td.check-cell[data-col="${c}"]`);
-          const cb = cell.querySelector('input[type="checkbox"]');
-          const shouldCheck = row.key[c];
-          const isChecked = cb.checked;
-          if (shouldCheck !== isChecked) rowCorrect = false;
-        }
+      document.querySelectorAll(".check-cell").forEach(cell => {
+        const r = +cell.dataset.row;
+        const c = +cell.dataset.col;
+        const cb = cell.querySelector('input[type="checkbox"]');
+        const badge = cell.querySelector(".badge");
+        const shouldCheck = ROWS[r].key[c];
+        const isChecked = cb.checked;
 
-        // Update row-level styling
-        if (rowCorrect) {
-          tr.classList.add('row-correct');
-          tr.classList.remove('row-incorrect');
-        } else {
+        cell.classList.remove("correct","incorrect");
+        badge.classList.remove("ok","no");
+
+        if (isChecked && shouldCheck) {
+          // Correctly checked → green, "Correct"
+          cell.classList.add("correct");
+          badge.classList.add("ok");
+          badge.textContent = "Correct";
+          badge.style.display = "block";
+        } else if (isChecked && !shouldCheck) {
+          // Incorrectly checked → pink, "Try again!"
           anyIncorrect = true;
-          incorrectRows.push(r+1);
-          tr.classList.add('row-incorrect');
-          tr.classList.remove('row-correct');
-        }
-
-        // Update the feedback column: show expected pattern (filled squares) and a badge
-        const feedback = tr.querySelector('.row-feedback');
-        const squares = feedback.querySelectorAll('.square');
-        squares.forEach((sq, idx) => {
-          if (row.key[idx]) sq.classList.add('filled'); else sq.classList.remove('filled');
-        });
-
-        const badge = feedback.querySelector('.row-badge');
-        badge.style.display = 'inline-block';
-        if (rowCorrect) {
-          badge.textContent = 'Correct combination';
-          badge.classList.add('ok');
-          badge.classList.remove('no');
+          cell.classList.add("incorrect");
+          badge.classList.add("no");
+          badge.textContent = "Try again!";
+          badge.style.display = "block";
+        } else if (!isChecked && shouldCheck) {
+          // Should have been checked but wasn't → counts as wrong, but stays blank/white
+          anyIncorrect = true;
+          badge.style.display = "none";
         } else {
-          badge.textContent = 'Incorrect — expected pattern shown';
-          badge.classList.add('no');
-          badge.classList.remove('ok');
+          // Correctly left empty → blank/white
+          badge.style.display = "none";
         }
       });
 
-      // Provide an overall result message that emphasizes combination correctness
       if (anyIncorrect) {
-        resultEl.textContent = `Not quite — some rows have the wrong combination. Rows with issues: ${incorrectRows.join(', ')}.`;
-        resultEl.style.color = '#b00020';
+        resultEl.textContent = "Not quite — this combination isn’t right yet. Adjust your checks and try again.";
+        resultEl.style.color = "#b00020";
       } else {
-        resultEl.textContent = 'Correct! Every row has the right combination of checks.';
-        resultEl.style.color = '#0a8a0a';
+        resultEl.textContent = "Correct! You’ve selected the right combination for every row.";
+        resultEl.style.color = "#0a8a0a";
       }
     }
 
     function resetAll(){
       document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
       clearAllFeedback();
-      // Show the expected patterns as neutral hints (but hide badges)
-      document.querySelectorAll('.row-feedback').forEach((feedback, r) => {
-        const squares = feedback.querySelectorAll('.square');
-        const row = ROWS[r];
-        squares.forEach((sq, idx) => {
-          if (row.key[idx]) sq.classList.add('filled'); else sq.classList.remove('filled');
-        });
-      });
-      resultEl.textContent = 'Reset complete. Check the boxes that apply, then click "Check answers."';
-      resultEl.style.color = '#111';
+      resultEl.textContent = "Reset complete. Check the boxes that apply, then click “Check answers.”";
+      resultEl.style.color = "#111";
     }
 
-    checkBtn.addEventListener('click', checkAnswers);
-    resetBtn.addEventListener('click', resetAll);
+    checkBtn.addEventListener("click", checkAnswers);
+    resetBtn.addEventListener("click", resetAll);
 
     render();
-    // On initial render, show expected patterns as hints (no badges)
-    document.querySelectorAll('.row-feedback').forEach((feedback, r) => {
-      const squares = feedback.querySelectorAll('.square');
-      const row = ROWS[r];
-      squares.forEach((sq, idx) => {
-        if (row.key[idx]) sq.classList.add('filled');
-      });
-    });
   </script>
 </body>
 </html>
